@@ -13,7 +13,7 @@ const { expect } = require("chai");
 // `describe` receives the name of a section of your test suite, and a callback.
 // The callback must define the tests of that section. This callback can't be
 // an async function.
-describe("Token contract", function () {
+describe("Token Storage Contract", function () {
   // Mocha has four functions that let you hook into the the test runner's
   // lifecycle. These are: `before`, `beforeEach`, `after`, `afterEach`.
 
@@ -25,6 +25,8 @@ describe("Token contract", function () {
 
   let Token;
   let hardhatToken;
+  let TokenStorage;
+  let tokenStorage;
   let owner;
   let addr1;
   let addr2;
@@ -33,17 +35,21 @@ describe("Token contract", function () {
   // `beforeEach` will run before each test, re-deploying the contract every
   // time. It receives a callback, which can be async.
   beforeEach(async function () {
-    // Get the ContractFactory and Signers here.
     Token = await ethers.getContractFactory("Token");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    hardhatToken = await Token.deploy();
+    await hardhatToken.deployed();
+
+    // Get the ContractFactory and Signers here.
+    TokenStorage = await ethers.getContractFactory("TokenStorage");
 
     // To deploy our contract, we just have to call Token.deploy() and await
     // for it to be deployed(), which happens onces its transaction has been
     // mined.
-    hardhatToken = await Token.deploy();
+    tokenStorage = await TokenStorage.deploy(hardhatToken.address);
 
     // We can interact with the contract by calling `hardhatToken.method()`
-    await hardhatToken.deployed();
+    await tokenStorage.deployed();
   });
 
   // You can nest describe calls to create subsections.
@@ -128,6 +134,50 @@ describe("Token contract", function () {
         addr2.address
       );
       expect(addr2Balance).to.equal(50);
+    });
+  });
+
+  describe("Token Storage", function () {
+    it("Should store tokens", async function () {
+      const initialOwnerBalance = await hardhatToken.balanceOf(
+        owner.address
+      );
+
+      // Owner of token stores 50 tokens
+      await hardhatToken.approve(tokenStorage.address, 50);
+      await tokenStorage.store(50);
+      const ownerStoredAmount = await tokenStorage.getStoredAmount(owner.address);
+      console.log(ownerStoredAmount);
+      expect(ownerStoredAmount).to.equal(50);
+      
+      const finalOwnerBalance = await hardhatToken.balanceOf(
+        owner.address
+      );
+
+      console.log(initialOwnerBalance.sub(50));
+      console.log(finalOwnerBalance);
+      expect(finalOwnerBalance).to.equal(initialOwnerBalance.sub(50));
+    });
+
+    it("Should be able to take tokens", async function () {
+      const initialOwnerBalance = await hardhatToken.balanceOf(
+        owner.address
+      );
+
+      // Owner of token first stores 50 tokens
+      await hardhatToken.approve(tokenStorage.address, 50);
+      await tokenStorage.store(50);
+
+      // Owner of token takes 50 tokens
+      await tokenStorage.take(50);
+      const ownerStoredAmount = await tokenStorage.getStoredAmount(owner.address);
+      expect(ownerStoredAmount).to.equal(0);
+
+      const finalOwnerBalance = await hardhatToken.balanceOf(
+        owner.address
+      );
+
+      expect(finalOwnerBalance).to.equal(initialOwnerBalance);
     });
   });
 });
