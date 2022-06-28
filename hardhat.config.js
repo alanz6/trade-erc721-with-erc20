@@ -7,7 +7,7 @@ require("./tasks/faucet");
 
 // If you are using MetaMask, be sure to change the chainId to 1337
 module.exports = {
-  solidity: "0.8.0",
+  solidity: "0.8.1",
   networks: {
     hardhat: {
       chainId: 31337
